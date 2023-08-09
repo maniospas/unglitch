@@ -155,6 +155,8 @@ module GTK
         l.x2 += 1 if l.x1 != l.x2
       end
 
+      @args.outputs.background_color = [0, 0, 0]
+
       @args.outputs
            .sprites << { x: 320,
                          y: 40,

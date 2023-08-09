@@ -2,7 +2,7 @@ require 'app/obstacles/building.rb'
 
 
 class Pedestrian
-    attr_accessor :x, :y, :destroyed, :moving, :solid, :interactive, :score, :speed, :is_pedestrian, :health, :particles, :cleansing, :speedup
+    attr_accessor :x, :y, :destroyed, :moving, :solid, :interactive, :score, :speed, :is_pedestrian, :health, :particles, :pending_add, :cleansing, :speedup
     def initialize(x, y, outfit, friendly)
         @x = x
         @y = y
@@ -27,6 +27,7 @@ class Pedestrian
         @cleansing_active = false
         @cleansing_progress = -1
         @speedup = 0
+        @pending_add = 0
     end
 
     def interact(from, args)
@@ -39,15 +40,26 @@ class Pedestrian
         #end
     end
 
+    def sigz(v, vzero)
+        if v < -vzero
+            v = -1
+        elsif v > vzero
+            v = 1
+        else
+            v = 0
+        end
+        v
+    end
+
     def target(targetx, targety)
         if (targetx-@x).abs > (targety-@y).abs
-            @dx = targetx-@x<0?-1:1
-            @dy_secondary = targety-@y<0?-1:1
+            @dx = sigz(targetx-@x, 0.05)
+            @dy_secondary = sigz(targety-@y, 0.05)
             @dy = 0
             @dx_secondary = 0
         else
-            @dy = targety-@y<0?-1:1
-            @dx_secondary = targetx-@x<0?-1:1
+            @dy = sigz(targety-@y, 0.05)
+            @dx_secondary = sigz(targetx-@x, 0.05)
             @dx = 0
             @dy_secondary = 0
         end
@@ -71,18 +83,18 @@ class Pedestrian
         @speed = 1
         if @speedup > 0
             @speed = 1.5
-            @speedup -= 0.75/60
+            @speedup -= 0.75/6*args.state.dt
             if @speedup < 0
                 @speedup = 0
             end
         end
 
-        collision_offset = 0.1*@speed
+        collision_offset = args.state.dt*@speed
         collision_distance = 1.0-collision_offset/2
 
 
         if @cleansing_active
-            @cleansing_progress += 1
+            @cleansing_progress += args.state.dt*10
             if @cleansing_progress > 8
                 @cleansing_progress = -1
                 @cleansing_active = false
@@ -207,7 +219,7 @@ class Pedestrian
         end
 
         if @moving
-            @walk += 1
+            @walk += args.state.dt*10
             if @walk >= 4*5
                 @walk = 0
             end
@@ -216,8 +228,8 @@ class Pedestrian
 
     def render(args)
         if @moving
-            walk_progress = @walk.div(5)
-            args.lowrez.sprites << {
+            walk_progress = @walk.floor().div(5)
+            args.state.my_sprites << {
                 x: (@x- args.state.viewx)*8,
                 y: (@y- args.state.viewy)*8, 
                 w: 8,
@@ -230,7 +242,7 @@ class Pedestrian
         end
             
 
-        args.lowrez.sprites << {
+        args.state.my_sprites << {
             x: (@x- args.state.viewx)*8,
             y: (@y- args.state.viewy)*8, 
             w: 8,
@@ -242,12 +254,12 @@ class Pedestrian
 
     def render_front(args)
         if @cleansing_progress != -1
-            args.lowrez.sprites << {
+            args.state.my_sprites << {
                 x: (@x- args.state.viewx)*8-4,
                 y: (@y- args.state.viewy)*8-4, 
                 w: 16,
                 h: 16,
-                path: 'sprites/effects/cleanse'+@cleansing_progress.div(4).to_s+'.png',
+                path: 'sprites/effects/cleanse'+@cleansing_progress.round().div(4).to_s+'.png',
                 angle: @angle
             }
         end

@@ -21,6 +21,7 @@ class Building
         @contents = contents
         @is_pedestrian = false
         @type_chance = 1
+        @offset = rand()
     end
 
     def turn_to_vp(args) 
@@ -42,20 +43,20 @@ class Building
         @glitched = 1
         @solid = true
         @texture = "tower"
-        @countdown = 30
+        @countdown = 40
         @vp = 0
         @particles.push(Particle.new())
         @type_chance *= 0.4
     end
     
     def process(args)
-        if @texture == "nursery" or @texture == "factory" or @texture == "arena"
+        if @texture == "nursery" or @texture == "factory" or @texture == "arena" or @texture == "granary"
             @interactive = true
         end
         if @texture == "tower"
-            @countdown -= 1
+            @countdown -= args.state.dt*10
             if @countdown < 0
-                @countdown = 60
+                @countdown = 80
                 proj = Projectile.new(@x-0.5, @y, -1, 0, self)
                 args.state.obstacles.push(proj)
                 proj.process(args)
@@ -70,11 +71,11 @@ class Building
                 proj.process(args)
             end
         end
-        spawn_rate = 0.001*@chance*args.state.spawn_rate
+        spawn_rate = 0.01*@chance*args.state.spawn_rate*args.state.dt
         if args.state.tutorial == 1
             spawn_rate *= 100
         end
-        if rand()<spawn_rate and @vp == 0 and @texture!="bush" and @texture!="tower" and @texture!=nil
+        if rand()<spawn_rate and @vp == 0 and @texture!="bush" and @texture!="tower" and @texture!="granary" and @texture!=nil
             if args.state.tutorial == 1
                 args.state.tutorial = 2
                 turn_to_vp(args)
@@ -101,7 +102,8 @@ class Building
     def interact(from, args)
         if from.is_pedestrian and @texture == "arena"
             if from.speedup == 0 #and args.state.tutorial > 2
-                from.speedup = 3
+                from.speedup = 3+from.pending_add
+                from.pending_add = 0
                 args.state.tutorial = 3
                 from.particles.push(CleansingParticle.new())
                 if from == args.state.player1 and args.state.volume > 0
@@ -110,7 +112,8 @@ class Building
             end
         elsif from.is_pedestrian and @texture == "factory"
             if from.cleansing < 1 #and args.state.tutorial > 2
-                from.cleansing = 1
+                from.cleansing = 1+from.pending_add
+                from.pending_add = 0
                 args.state.tutorial = 3
                 from.particles.push(CleansingParticle.new())
                 if from == args.state.player1 and args.state.volume > 0
@@ -119,7 +122,17 @@ class Building
             end
         elsif from.is_pedestrian and @texture == "nursery"
             if from.health < 1 #and args.state.tutorial > 2
-                from.health += 1
+                from.health += 1+from.pending_add
+                from.pending_add = 0
+                args.state.tutorial = 3
+                from.particles.push(HealParticle.new())
+                if from == args.state.player1 and args.state.volume > 0
+                    args.outputs.sounds << 'sounds/Buff.ogg'
+                end
+            end
+        elsif from.is_pedestrian and @texture == "granary"
+            if from.pending_add < 1 #and args.state.tutorial > 2
+                from.pending_add += 1
                 args.state.tutorial = 3
                 from.particles.push(HealParticle.new())
                 if from == args.state.player1 and args.state.volume > 0
@@ -137,7 +150,10 @@ class Building
                     args.outputs.sounds << 'sounds/Fix.ogg'
                 end
             end
-            from.score += @vp
+            if @vp > 0
+                from.score += @vp+from.pending_add
+                from.pending_add = 0
+            end
             @interactive = false
             @glitched = 0
             @vp = 0
@@ -157,10 +173,30 @@ class Building
     end
 
     def render(args)
+        blink = 196
+        ticks = (args.state.time + @offset*10).round.div(12) % 2
+
+        if @interactive == false
+            blink = 255
+        elsif @texture == "nursery" and args.state.player1.health == 0 and ticks == 0
+            blink = 255
+        elsif @texture == "factory" and args.state.player1.cleansing == 0 and ticks == 0
+            blink = 255
+        elsif @texture == "arena" and args.state.player1.speedup == 0 and ticks == 0
+            blink = 255
+        elsif @texture == "granary" and args.state.player1.pending_add == 0 and ticks == 0
+            blink = 255
+        elsif @texture == "vp" or @texture == "tower" or @texture == "building0" or @texture == "barrier"
+            blink = 255
+        end
+
         if @texture != nil
-            args.lowrez.sprites << {
+            args.state.my_sprites << {
                 x: (@x- args.state.viewx)*8+(8-@size)/2,
                 y: (@y- args.state.viewy)*8+(8-@size)/2, 
+                r: blink,
+                g: blink,
+                b: blink,
                 w: @size,
                 h: @size/8*@height,
                 path: 'sprites/tile/'+@texture+'.png',

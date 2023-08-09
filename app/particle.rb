@@ -61,7 +61,7 @@ class Particle
 
     def render(x, y, args)
         @particles.each do |particle|
-            args.lowrez.sprites << {
+            args.state.my_sprites << {
                 x: x+particle.x,
                 y: y+particle.y, 
                 w: 1,

@@ -10,8 +10,29 @@ STATE_GAMEOVER = 3
 STATE_VICTORY = 4
 STATE_SELECTION = 5
 
+def finalize(args)
+  time = Time.now.to_f
+  dt = (time - $timer_start)*6
+  if dt > 0.2
+    dt = 0.2
+  end
+  args.state.dt ||= dt
+  args.state.dt = args.state.dt*0.9 + dt*0.1
+  args.lowrez.sprites << args.state.my_sprites
+  $timer_start = Time.now.to_f
+end
+
 def render_selection(args)
-  args.lowrez.sprites << {
+  if args.state.all_progress.length == 0
+    args.state.all_progress["best0.number"] = args.gtk.read_file("best0.number").to_i
+    args.state.all_progress["best1.number"] = args.gtk.read_file("best1.number").to_i
+    args.state.all_progress["best2.number"] = args.gtk.read_file("best2.number").to_i
+    args.state.all_progress["best3.number"] = args.gtk.read_file("best3.number").to_i
+    args.state.all_progress["best4.number"] = args.gtk.read_file("best4.number").to_i
+    args.state.all_progress["best5.number"] = args.gtk.read_file("best5.number").to_i
+  end
+
+  args.state.my_sprites << {
         x: 0,
         y: 0, 
         w: 64,
@@ -20,9 +41,9 @@ def render_selection(args)
         angle: 0,
   }
     
-  args.state.intro += 1
+  args.state.intro += args.state.dt*10
   
-  args.lowrez.sprites << {
+  args.state.my_sprites << {
       x: 0,
       y: 45 - [20-5*args.state.intro, 0].max, 
       w: 64,
@@ -31,271 +52,87 @@ def render_selection(args)
       angle: 0,
   }
 
-  # TUTORIAL SELECTION
-  px = 6
-  py = 25+1 - [250-args.state.intro*5, 0].max
-  mouse_over = (args.lowrez.mouse_position.x>=px and args.lowrez.mouse_position.x<=px+16 and args.lowrez.mouse_position.y>=py and args.lowrez.mouse_position.y<=py+16)
-  mouse_over = mouse_over and args.state.game_state == STATE_SELECTION
-  color = (mouse_over==true)?255 : 212
-  args.lowrez.sprites << {
-    x: px,
-    y: py, 
-    w: 16,
-    h: 16,
-    r: color,
-    g: color,
-    b: color,
-    path: 'data/tutorial.png',
-    angle: 0
-  }
-  if args.lowrez.mouse_down and mouse_over
-    args.state.path = "data/tutorial.txt"
-    args.state.game_state = STATE_CREATION
-    args.state.difficulty = 0
-    args.state.spawn_rate = 1
-    args.state.pending_progress = 1
-    args.state.prevtotalscore = 0
-    args.state.shake = 0
-    args.state.shakex = 0
-    args.state.shakey = 0
-    args.state.transition = 0
-  end
-  score = args.gtk.read_file("best0.number").to_i
-  if score == 0
-    score = "_"
-  else
-    score = ((score*1.0/60).round()).to_s
-  end
-  args.lowrez.labels << {
-    x: px+16/2-score.length*4/2+1+3, y: py+5, 
-    w: 4, h: 4,
-    r:232, g:232, b:32, a:255,
-    text: score,
-    font: 'fonts/smol.ttf',
-    size_enum: -9
-  }
-  args.lowrez.sprites << {
-    x: px+16/2-score.length*4/2+1-3, y: py+5-3, 
-    w: 5, h: 5,
-    path: 'sprites/controls/clock.png',
-  }
-  
-  # TOWN SELECTION
-  if args.state.progress>=1
-    px = 6+18
-    py = 25+1 - [300-args.state.intro*5, 0].max
-    mouse_over = (args.lowrez.mouse_position.x>=px and args.lowrez.mouse_position.x<=px+16 and args.lowrez.mouse_position.y>=py and args.lowrez.mouse_position.y<=py+16)
-    mouse_over = mouse_over and args.state.game_state == STATE_SELECTION
-    color = (mouse_over==true)?255 : 212
-    args.lowrez.sprites << {
-      x: px,
-      y: py, 
-      w: 16,
-      h: 16,
-      r: color,
-      g: color,
-      b: color,
-      path: 'data/town.png',
-      angle: 0
-    }
-    if args.lowrez.mouse_down and mouse_over
-      args.state.path = "data/town.txt"
-      args.state.game_state = STATE_CREATION
-      args.state.difficulty = 0.3
-      args.state.spawn_rate = 1
-      args.state.pending_progress = 2
-      args.state.prevtotalscore = 0
-      args.state.shake = 0
-      args.state.shakex = 0
-      args.state.shakey = 0
-      args.state.transition = 0
-    end
-    
-    score = args.gtk.read_file("best1.number").to_i
-    if score == 0
-      score = "_"
-    else
-      score = ((score*1.0/60).round()).to_s
-    end
-    args.lowrez.labels << {
-      x: px+16/2-score.length*4/2+1+3, y: py+5, 
-      w: 4, h: 4,
-      r:232, g:232, b:32, a:255,
-      text: score,
-      font: 'fonts/smol.ttf',
-      size_enum: -9
-    }
-    args.lowrez.sprites << {
-      x: px+16/2-score.length*4/2+1-3, y: py+5-3, 
-      w: 5, h: 5,
-      path: 'sprites/controls/clock.png',
-    }
-  end
+  buttons = [
+    {path: 'data/tutorial', difficulty: 0, spawn_rate: 1},
+    {path: 'data/town', difficulty: 0.3, spawn_rate: 1},
+    {path: 'data/town_large', difficulty: 0.4, spawn_rate: 1},
+    {path: 'data/hospital', difficulty: 0.4, spawn_rate: 0.5},
+    {path: 'data/factory', difficulty: 0.7, spawn_rate: 0.5}
+  ]
 
-  # LARGE TOWN SELECTION
-  if args.state.progress>=2
-    px = 6+18*2
-    py = 25+1 - [350-args.state.intro*5, 0].max
-    mouse_over = (args.lowrez.mouse_position.x>=px and args.lowrez.mouse_position.x<=px+16 and args.lowrez.mouse_position.y>=py and args.lowrez.mouse_position.y<=py+16)
-    mouse_over = mouse_over and args.state.game_state == STATE_SELECTION
-    color = (mouse_over==true)?255 : 212
-    args.lowrez.sprites << {
-      x: px,
-      y: py, 
-      w: 16,
-      h: 16,
-      r: color,
-      g: color,
-      b: color,
-      path: 'data/town_large.png',
-      angle: 0
-    }
-    if args.lowrez.mouse_down and mouse_over
-      args.state.path = "data/town_large.txt"
-      args.state.game_state = STATE_CREATION
-      args.state.difficulty = 0.4
-      args.state.spawn_rate = 1
-      args.state.pending_progress = 3
-      args.state.prevtotalscore = 0
-      args.state.shake = 0
-      args.state.shakex = 0
-      args.state.shakey = 0
-      args.state.transition = 0
-    end
-    
-    score = args.gtk.read_file("best2.number").to_i
-    if score == 0
-      score = "_"
-    else
-      score = ((score*1.0/60).round()).to_s
-    end
-    args.lowrez.labels << {
-      x: px+16/2-score.length*4/2+1+3, y: py+5, 
-      w: 4, h: 4,
-      r:232, g:232, b:32, a:255,
-      text: score,
-      font: 'fonts/smol.ttf',
-      size_enum: -9
-    }
-    args.lowrez.sprites << {
-      x: px+16/2-score.length*4/2+1-3, y: py+5-3, 
-      w: 5, h: 5,
-      path: 'sprites/controls/clock.png',
-    }
-  end
+  progress = 0
+  bpx = 6
+  bpy = 26
+  delay = 50
+  buttons.each do |button|
+    if args.state.progress >= progress
+      px = bpx
+      py = bpy - [250+delay-args.state.intro*5, 0].max
+      mouse_over = (args.lowrez.mouse_position.x>=px and args.lowrez.mouse_position.x<=px+16 and args.lowrez.mouse_position.y>=py and args.lowrez.mouse_position.y<=py+16)
+      mouse_over = mouse_over and args.state.game_state == STATE_SELECTION
+      color = (mouse_over==true)? 255 : 212
+      args.state.my_sprites << {
+        x: px,
+        y: py, 
+        w: 16,
+        h: 16,
+        r: color,
+        g: color,
+        b: color,
+        path: button.path+'.png',
+        angle: 0
+      }
+      if args.lowrez.mouse_down and mouse_over
+        args.state.path = button.path+".txt"
+        args.state.game_state = STATE_CREATION
+        args.state.difficulty = button.difficulty
+        args.state.spawn_rate = button.spawn_rate
+        args.state.pending_progress = progress+1
+        args.state.prevtotalscore = 0
+        args.state.shake = 0
+        args.state.shakex = 0
+        args.state.shakey = 0
+        args.state.transition = 0
+      end
 
-  
-  # HOSPITAL SELECTION
-  if args.state.progress>=3
-    px = 6
-    py = 8 - [400-args.state.intro*5, 0].max
-    mouse_over = (args.lowrez.mouse_position.x>=px and args.lowrez.mouse_position.x<=px+16 and args.lowrez.mouse_position.y>=py and args.lowrez.mouse_position.y<=py+16)
-    mouse_over = mouse_over and args.state.game_state == STATE_SELECTION
-    color = (mouse_over==true)?255 : 212
-    args.lowrez.sprites << {
-      x: px,
-      y: py, 
-      w: 16,
-      h: 16,
-      r: color,
-      g: color,
-      b: color,
-      path: 'data/hospital.png',
-      angle: 0
-    }
-    if args.lowrez.mouse_down and mouse_over
-      args.state.path = "data/hospital.txt"
-      args.state.game_state = STATE_CREATION
-      args.state.difficulty = 0.4
-      args.state.spawn_rate = 0.5
-      args.state.pending_progress = 4
-      args.state.prevtotalscore = 0
-      args.state.shake = 0
-      args.state.shakex = 0
-      args.state.shakey = 0
-      args.state.transition = 0
+      if mouse_over
+        score = args.state.all_progress["best"+progress.to_s+".number"].to_i
+        if score == 0
+          score = "_"
+        else
+          score = ((score*1.0/60).round()).to_s
+        end
+        
+        args.lowrez.labels << {
+          x: px+6, y: py+4, 
+          w: 4, h: 4,
+          r:232, g:232, b:32, a:255,
+          text: score,
+          font: 'fonts/smol.ttf',
+          size_enum: -9
+        }
+        args.state.my_sprites << {
+          x: px, y: py, 
+          w: 5, h: 5,
+          path: 'sprites/controls/clock_partial.png',
+        }
+      end
     end
-    
-    score = args.gtk.read_file("best3.number").to_i
-    if score == 0
-      score = "_"
-    else
-      score = ((score*1.0/60).round()).to_s
+    progress += 1
+    bpx += 18
+    delay += 50
+    if progress == 3
+      bpx = 6
+      bpy -= 18
     end
-    args.lowrez.labels << {
-      x: px+16/2-score.length*4/2+1+3, y: py+5, 
-      w: 4, h: 4,
-      r:232, g:232, b:32, a:255,
-      text: score,
-      font: 'fonts/smol.ttf',
-      size_enum: -9
-    }
-    args.lowrez.sprites << {
-      x: px+16/2-score.length*4/2+1-3, y: py+5-3, 
-      w: 5, h: 5,
-      path: 'sprites/controls/clock.png',
-    }
   end
-  
-  # FACTORY SELECTION
-  if args.state.progress>=4
-    px = 6+18
-    py = 8 - [450-args.state.intro*5, 0].max
-    mouse_over = (args.lowrez.mouse_position.x>=px and args.lowrez.mouse_position.x<=px+16 and args.lowrez.mouse_position.y>=py and args.lowrez.mouse_position.y<=py+16)
-    mouse_over = mouse_over and args.state.game_state == STATE_SELECTION
-    color = (mouse_over==true)?255 : 212
-    args.lowrez.sprites << {
-      x: px,
-      y: py, 
-      w: 16,
-      h: 16,
-      r: color,
-      g: color,
-      b: color,
-      path: 'data/factory.png',
-      angle: 0
-    }
-    if args.lowrez.mouse_down and mouse_over
-      args.state.path = "data/factory.txt"
-      args.state.game_state = STATE_CREATION
-      args.state.difficulty = 0.7
-      args.state.spawn_rate = 0.5
-      args.state.pending_progress = 5
-      args.state.prevtotalscore = 0
-      args.state.shake = 0
-      args.state.shakex = 0
-      args.state.shakey = 0
-      args.state.transition = 0
-    end
-    
-    score = args.gtk.read_file("best4.number").to_i
-    if score == 0
-      score = "_"
-    else
-      score = ((score*1.0/60).round()).to_s
-    end
-    args.lowrez.labels << {
-      x: px+16/2-score.length*4/2+1+3, y: py+5, 
-      w: 4, h: 4,
-      r:232, g:232, b:32, a:255,
-      text: score,
-      font: 'fonts/smol.ttf',
-      size_enum: -9
-    }
-    args.lowrez.sprites << {
-      x: px+16/2-score.length*4/2+1-3, y: py+5-3, 
-      w: 5, h: 5,
-      path: 'sprites/controls/clock.png',
-    }
-  end
-
 
   # SOUND
   px = 64-7-1
   py = 1
   mouse_over = (args.lowrez.mouse_position.x>=px and args.lowrez.mouse_position.x<=px+7 and args.lowrez.mouse_position.y>=py and args.lowrez.mouse_position.y<=py+5)
   color = (mouse_over==true)?255 : 212
-  args.lowrez.sprites << {
+  args.state.my_sprites << {
     x: px,
     y: py, 
     w: 7,
@@ -314,7 +151,10 @@ def render_selection(args)
 end
 
 def tick args
+  $timer_start ||= Time.now.to_f
+  args.state.my_sprites = []
   # initialize
+  args.state.all_progress ||= {}
   args.state.obstacles ||= []
   args.state.game_state ||= STATE_START
   args.state.player1 ||= nil
@@ -336,7 +176,7 @@ def tick args
     if args.audio[:music]!=nil
       args.audio[:music].gain  = 0
     end
-    args.lowrez.sprites << {
+    args.state.my_sprites << {
       x: 0,
       y: 0, 
       w: 64,
@@ -353,7 +193,7 @@ def tick args
       size_enum: -9
     }
     flicker = 0
-    args.lowrez.sprites << {
+    args.state.my_sprites << {
         x: 32-8/2-flicker/2,
         y: 2-flicker/2, 
         w: 8+flicker,
@@ -361,6 +201,7 @@ def tick args
         path: 'sprites/controls/enter.png',
         angle: 0
     }
+    finalize(args)
     return
   elsif args.audio[:music]!=nil
     args.audio[:music].gain  = args.state.volume*0.5
@@ -454,7 +295,7 @@ def tick args
   end
 
   if args.state.game_state == STATE_START
-    args.lowrez.sprites << {
+    args.state.my_sprites << {
       x: 0,
       y: 0, 
       w: 64,
@@ -463,7 +304,7 @@ def tick args
       angle: 0
     }
     flicker = 0
-    args.lowrez.sprites << {
+    args.state.my_sprites << {
         x: 32-8/2-flicker/2,
         y: 2-flicker/2, 
         w: 8+flicker,
@@ -482,20 +323,22 @@ def tick args
         looping: true
       }
     end
+    finalize(args)
     return
   end
   
   if args.state.game_state == STATE_SELECTION
     render_selection(args)
+    finalize(args)
     return
   end
 
   if args.state.game_state == STATE_GAMEOVER
     
-    args.state.game_over_progress += 1
+    args.state.game_over_progress += args.state.dt*10
 
     original_message = "Player glitch  "
-    message = original_message[0..[original_message.length-1, args.state.game_over_progress.div(2)].min]
+    message = original_message[0..[original_message.length-1, args.state.game_over_progress.round().div(2)].min]
 
     
     args.lowrez.labels << {
@@ -508,7 +351,7 @@ def tick args
     }
 
 
-    args.lowrez.sprites << {
+    args.state.my_sprites << {
       x: 0,
       y: 0, 
       w: 64,
@@ -518,7 +361,7 @@ def tick args
     }
     if message.length == original_message.length
       flicker = 0
-      args.lowrez.sprites << {
+      args.state.my_sprites << {
           x: 32-8/2-flicker/2,
           y: 2-flicker/2, 
           w: 8+flicker,
@@ -537,12 +380,13 @@ def tick args
         looping: true
       }
     end
+    finalize(args)
     return
   end
 
   if args.state.game_state == STATE_VICTORY
-    args.state.game_over_progress += 1
-    args.lowrez.sprites << {
+    args.state.game_over_progress += args.state.dt*10
+    args.state.my_sprites << {
       x: 0,
       y: 0, 
       w: 64,
@@ -552,7 +396,7 @@ def tick args
     }
 
     original_message = ""#"Fixed 10 glitches  "
-    message = original_message[0..[original_message.length-1, args.state.game_over_progress.div(2)].min]
+    message = original_message[0..[original_message.length-1, args.state.game_over_progress.round().div(2)].min]
     args.lowrez.labels << {
       x: 4, y: 26, 
       w: 4, h: 4,
@@ -564,10 +408,10 @@ def tick args
 
     best_score_path = "best"+((args.state.pending_progress-1).to_s)+".number"
     best_score = args.gtk.read_file(best_score_path).to_i
-    if args.state.game_over_progress.div(2)-original_message.length >= 1
-      if args.state.time <= best_score + 1
-        original_message = "New best time: "+((args.state.time*1.0/60).round()).to_s
-        message = original_message[0..[original_message.length-1, [0, args.state.game_over_progress.div(2)-original_message.length-1].max].min]
+    if args.state.game_over_progress.round().div(2)-original_message.length >= 1
+      if args.state.current_score <= best_score or best_score == 0
+        original_message = "New best time: "+((args.state.current_score*1.0/60).round()).to_s
+        message = original_message[0..[original_message.length-1, args.state.game_over_progress.round().div(2)].min]
         args.lowrez.labels << {
           x: 4, y: 26, 
           w: 4, h: 4,
@@ -577,8 +421,8 @@ def tick args
           size_enum: -9
         }
       else
-        original_message = "Time: "+((args.state.time*1.0/60).round()).to_s+"  Best: "+((best_score*1.0/60).round()).to_s+""
-        message = original_message[0..[original_message.length-1, [0, args.state.game_over_progress.div(2)-original_message.length-1].max].min]
+        original_message = "Time: "+((args.state.current_score*1.0/60).round()).to_s+"  Best: "+((best_score*1.0/60).round()).to_s+""
+        message = original_message[0..[original_message.length-1, args.state.game_over_progress.round().div(2)].min]
         args.lowrez.labels << {
           x: 4, y: 26, 
           w: 4, h: 4,
@@ -590,7 +434,7 @@ def tick args
       end
       if message.length == original_message.length
         flicker = 0
-        args.lowrez.sprites << {
+        args.state.my_sprites << {
             x: 32-8/2-flicker/2,
             y: 2-flicker/2, 
             w: 8+flicker,
@@ -610,22 +454,23 @@ def tick args
         looping: true
       }
     end
+    finalize(args)
     return
   end
 
   args.state.mouse_pressed ||= false
 
   if args.inputs.keyboard.key_held.escape
-    args.state.game_state = STATE_SELECTION
-      args.state.intro = 0
-      args.state.player1.health = 0
+    #args.state.game_state = STATE_SELECTION
+    #  args.state.intro = 0
+    #  args.state.player1.health = 0
       args.state.player1.score = -1
-      args.audio.delete :music
-      args.audio[:music] = {
-        input: 'sounds/Main.ogg',
-        gain: args.state.volume*0.5,
-        looping: true
-      }
+    #  args.audio.delete :music
+    #  args.audio[:music] = {
+    #    input: 'sounds/Main.ogg',
+    #    gain: args.state.volume*0.5,
+    #    looping: true
+    #  }
   end
 
   if args.inputs.keyboard.key_held.left
@@ -633,6 +478,7 @@ def tick args
     if args.state.tutorial == 0
       args.state.tutorial = 1
       args.state.time = 0
+      args.state.current_score = 0
     end
   end
   if args.inputs.keyboard.key_held.right
@@ -640,6 +486,7 @@ def tick args
     if args.state.tutorial == 0
       args.state.tutorial = 1
       args.state.time = 0
+      args.state.current_score = 0
     end
   end
   if args.inputs.keyboard.key_held.down
@@ -647,6 +494,7 @@ def tick args
     if args.state.tutorial == 0
       args.state.tutorial = 1
       args.state.time = 0
+      args.state.current_score = 0
     end
   end
   if args.inputs.keyboard.key_held.up
@@ -654,6 +502,7 @@ def tick args
     if args.state.tutorial == 0
       args.state.tutorial = 1
       args.state.time = 0
+      args.state.current_score = 0
     end
   end
   if args.lowrez.mouse_up or args.inputs.keyboard.key_up.up or args.inputs.keyboard.key_up.down or args.inputs.keyboard.key_up.right or args.inputs.keyboard.key_up.left 
@@ -671,6 +520,7 @@ def tick args
     if args.state.tutorial == 0
       args.state.tutorial = 1
       args.state.time = 0
+      args.state.current_score = 0
     end
   end
 
@@ -694,12 +544,12 @@ def tick args
   if args.state.shake > 0
     args.state.shakex = args.state.shakex*args.state.shake_dampening+(1-args.state.shake_dampening)*(args.state.shake/2-1)**2 *(rand()*2-1)
     args.state.shakey = args.state.shakey*args.state.shake_dampening+(1-args.state.shake_dampening)*(args.state.shake/2-1)**2 *(rand()*2-1)
-    args.state.shake -= 0.07
+    args.state.shake -= 0.07*args.state.dt*10
     if args.state.shake_dampening > 0.8
-      args.state.shake -= 0.07
+      args.state.shake -= 0.07*args.state.dt*10
     end
     if args.state.player1.destroyed and args.state.shake < 0.5
-      args.state.shake += 0.07
+      args.state.shake += 0.07*args.state.dt*10
     end
   else
     args.state.shakex = args.state.shakex*args.state.shake_dampening
@@ -709,12 +559,12 @@ def tick args
   args.state.viewx = args.state.player1.x-4+args.state.shakex
   args.state.viewy = args.state.player1.y-4+args.state.shakey
 
-  args.state.transition += 1
+  args.state.transition += args.state.dt*10
   transition = args.state.transition
 
   if transition < 15
     render_selection(args)
-    args.lowrez.sprites << {
+    args.state.my_sprites << {
         x: -2-args.state.shakex,
         y: -2-args.state.shakey, 
         w: 68,
@@ -722,10 +572,11 @@ def tick args
         a: 255.0/15*transition,
         path: 'sprites/shadow.png'
     }
+    finalize(args)
     return
   elsif transition<30
     transition -= 15
-    args.lowrez.sprites << {
+    args.state.my_sprites << {
         x: 0,
         y: 0, 
         w: 64,
@@ -734,7 +585,7 @@ def tick args
         a: (255-255.0/15*transition),
         path: :pixel
     }
-    args.lowrez.sprites << {
+    args.state.my_sprites << {
         x: -2-args.state.shakex,
         y: -2-args.state.shakey, 
         w: 68,
@@ -747,7 +598,7 @@ def tick args
 
 
   # render
-  args.lowrez.sprites << {
+  args.state.my_sprites << {
       x: 0,
       y: 0, 
       w: 64,
@@ -773,7 +624,7 @@ def tick args
   end
 
   if args.state.wait_while_dead > 0
-    args.lowrez.sprites << {
+    args.state.my_sprites << {
         x: 0,
         y: 0, 
         w: 64,
@@ -786,7 +637,7 @@ def tick args
         angle: 0
     }
   elsif transition < 30
-    args.lowrez.sprites << {
+    args.state.my_sprites << {
         x: 0,
         y: 0, 
         w: 64,
@@ -799,7 +650,7 @@ def tick args
         angle: 0
     }
   end
-  args.lowrez.sprites << {
+  args.state.my_sprites << {
       x: -2-args.state.shakex,
       y: -2-args.state.shakey, 
       w: 68,
@@ -808,6 +659,7 @@ def tick args
       angle: 0
   }
   if transition < 30
+    finalize(args)
     return
   end
   
@@ -818,7 +670,7 @@ def tick args
   end
 
   if args.state.player1.destroyed
-    args.state.wait_while_dead += 1
+    args.state.wait_while_dead += args.state.dt*10
     if args.state.wait_while_dead > 60
       args.state.wait_while_dead = 0
       args.state.game_over_progress = 0
@@ -833,14 +685,19 @@ def tick args
   end
 
   if args.state.player1.score >= 10
-    args.state.wait_while_dead += 1
+    args.state.wait_while_dead += args.state.dt*10
+    if args.state.current_score == 0
+      args.state.current_score = args.state.time.round()
+    end
     if args.state.wait_while_dead > 60
       args.state.wait_while_dead = 0
       args.state.game_state = STATE_VICTORY
       best_score_path = "best"+((args.state.pending_progress-1).to_s)+".number"
-      best_score = args.gtk.read_file(best_score_path).to_i
-      if best_score == 0 or args.state.time < best_score
-        args.gtk.write_file(best_score_path, args.state.time.to_s)
+      
+      best_score = args.state.all_progress[best_score_path]#args.gtk.read_file(best_score_path).to_i
+      if best_score == 0 or args.state.current_score < best_score
+        args.state.all_progress[best_score_path] = args.state.current_score
+        args.gtk.write_file(best_score_path, args.state.current_score.to_s)
       end
       args.state.game_over_progress = 0
       if args.state.progress < args.state.pending_progress
@@ -874,19 +731,19 @@ def tick args
   args.state.prev_tutorial = tutorial
 
 
-  if args.state.tutorial > 0 
-    args.state.time += 1
-    args.lowrez.sprites << {
+  if args.state.tutorial > 0 and args.state.player1.score < 10
+    args.state.time += args.state.dt*10
+    args.state.my_sprites << {
       x: 0, y: 63-5, 
       w: 5, h: 5,
-      path: 'sprites/controls/clock.png',
+      path: 'sprites/controls/clock'+((args.state.time*8/60.0).round() % 8).to_s+'.png',
     }
     
     args.lowrez.labels << {
       x: 6, y: 62, 
       w: 4, h: 4,
       r:232, g:232, b:32, a:255,
-      text: ((args.state.time*1.0/60).round()).to_s,
+      text: ((args.state.time/60.0).round()).to_s,
       font: 'fonts/smol.ttf',
       size_enum: -9
     }
@@ -894,9 +751,9 @@ def tick args
 
 
   if tutorial.length > 0
-    args.state.game_over_progress += 1
-    tutorial = tutorial[0, [tutorial.length, args.state.game_over_progress.div(2)].min]
-    args.lowrez.sprites << {
+    args.state.game_over_progress += args.state.dt*10
+    tutorial = tutorial[0, [tutorial.length, args.state.game_over_progress.round().div(2)].min]
+    args.state.my_sprites << {
         x: 1,
         y: 2, 
         w: 62,
@@ -914,14 +771,27 @@ def tick args
     }
   end
 
+  args.state.score_rotate ||= 0
+  args.state.prev_score ||= 0
+  if args.state.prev_score < args.state.player1.score
+    args.state.score_rotate = 20
+  end
+  if args.state.score_rotate > 0
+    args.state.score_rotate -= args.state.dt*20
+    if args.state.score_rotate < 0
+      args.state.score_rotate = 0
+    end
+  end
+  args.state.prev_score = args.state.player1.score
+
   if args.state.tutorial > 0 and args.state.player1.destroyed == false and args.state.player1.score < 10
-    args.lowrez.sprites << {
+    args.state.my_sprites << {
         x: 64-9,
         y: 2, 
         w: 8,
         h: 8,
         path: 'sprites/controls/score.png',
-        angle: 0
+        angle: args.state.score_rotate*90/20
     }
     args.lowrez.labels << {
       x: 64-7,
@@ -939,11 +809,25 @@ def tick args
   end
 
   px = 64-9
+
+  if args.state.tutorial > 2 and args.state.player1.pending_add > 0 and args.state.player1.score < 10 and args.state.player1.destroyed==false
+    for i in 1..args.state.player1.pending_add
+      px -= 7
+      args.state.my_sprites << {
+          x: px,
+          y: 2, 
+          w: 8,
+          h: 8,
+          path: 'sprites/controls/pending.png',
+          angle: 0
+      }
+    end
+  end
   
-  if args.state.tutorial > 2 and args.state.player1.health > 0 and args.state.player1.score < 10
+  if args.state.tutorial > 2 and args.state.player1.health > 0 and args.state.player1.score < 10 and args.state.player1.destroyed==false
     for i in 1..args.state.player1.health
       px -= 9
-      args.lowrez.sprites << {
+      args.state.my_sprites << {
           x: px,
           y: 2, 
           w: 8,
@@ -954,10 +838,10 @@ def tick args
     end
   end
 
-  if args.state.tutorial > 2 and args.state.player1.cleansing > 0 and args.state.player1.score < 10
+  if args.state.tutorial > 2 and args.state.player1.cleansing > 0 and args.state.player1.score < 10 and args.state.player1.destroyed==false
     for i in 1..args.state.player1.cleansing
       px -= 9
-      args.lowrez.sprites << {
+      args.state.my_sprites << {
           x: px,
           y: 2, 
           w: 8,
@@ -967,11 +851,10 @@ def tick args
       }
     end
   end
-
   
-  if args.state.tutorial > 2 and args.state.player1.speedup > 0 and args.state.player1.score < 10
+  if args.state.tutorial > 2 and args.state.player1.speedup > 0 and args.state.player1.score < 10 and args.state.player1.destroyed==false
     for i in 1..(args.state.player1.speedup).ceil()
-      args.lowrez.sprites << {
+      args.state.my_sprites << {
           x: 64-9,
           y: 2+4*(i-1)+9, 
           w: 8,
@@ -981,8 +864,8 @@ def tick args
       }
     end
   end
-
-
+  
+  finalize(args)
 end
 
 $gtk.reset

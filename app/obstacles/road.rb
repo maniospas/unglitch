@@ -22,7 +22,7 @@ class Laserjet
     
     def render(args)
         if @texture != nil
-            args.lowrez.sprites << {
+            args.state.my_sprites << {
                 x: (@x- args.state.viewx)*8+(8-@size)/2,
                 y: (@y- args.state.viewy)*8+(8-@size)/2, 
                 w: @size,
@@ -97,7 +97,7 @@ class Barrier
     
     def render(args)
         if @texture != nil
-            args.lowrez.sprites << {
+            args.state.my_sprites << {
                 x: (@x- args.state.viewx)*8+(8-@size)/2,
                 y: (@y- args.state.viewy)*8+(8-@size)/2, 
                 w: @size,

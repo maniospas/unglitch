@@ -50,7 +50,7 @@ class Projectile
         end
 
         args.state.obstacles.each do |b|
-            if b.solid and (b.x-@x-@dx*@speed*0.1).abs()<0.5 and (b.y-@y-@dy*@speed*0.1).abs()<0.5 and (b.x!=@x or b.y!=@y) and @creator != b and not b.is_a? Particle #and b.is_pedestrian
+            if b.solid and (b.x-@x-@dx*@speed*args.state.dt).abs()<0.5 and (b.y-@y-@dy*@speed*args.state.dt).abs()<0.5 and (b.x!=@x or b.y!=@y) and @creator != b and not b.is_a? Particle #and b.is_pedestrian
                 if b.is_pedestrian and b.speedup > 0
                     next
                 end
@@ -69,8 +69,8 @@ class Projectile
             end
         end
 
-        @x += @dx*@speed*0.1
-        @y += @dy*@speed*0.1
+        @x += @dx*@speed*args.state.dt
+        @y += @dy*@speed*args.state.dt
 
         @particles.each do |particle|
             particle.process()
@@ -91,8 +91,8 @@ class Projectile
         if @walk >= 5*3
             @walk = 0
         end
-        walk_progress = @walk.div(3)
-        args.lowrez.sprites << {
+        walk_progress = @walk.round().div(3)
+        args.state.my_sprites << {
             x: (@x- args.state.viewx)*8,
             y: (@y- args.state.viewy)*8, 
             w: 8,
@@ -115,7 +115,7 @@ class Laser < Projectile
         @speed = 1.5
     end
     def render(args)
-        args.lowrez.sprites << {
+        args.state.my_sprites << {
             x: (@x- args.state.viewx)*8,
             y: (@y- args.state.viewy)*8, 
             w: 8,
