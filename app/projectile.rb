@@ -60,6 +60,7 @@ class Projectile
                     if b == args.state.player1 and args.state.volume > 0
                         args.outputs.sounds << 'sounds/Hit.ogg'
                     end
+                    b.message = ("Hit -1")
                     if b.health > 0
                         b.health -= 1
                     else

@@ -3,11 +3,10 @@ require 'app/obstacles/building.rb'
 
 class Pedestrian
     attr_accessor :x, :y, :destroyed, :moving, :solid, :interactive, :score, :speed, :is_pedestrian, :health, :particles, :pending_add, :cleansing, :speedup
-    def initialize(x, y, outfit, friendly)
+    def initialize(x, y, friendly)
         @x = x
         @y = y
         @destroyed = false
-        @outfit = outfit
         @walk = 0
         @moving = false
         @dx = 0
@@ -28,6 +27,50 @@ class Pedestrian
         @cleansing_progress = -1
         @speedup = 0
         @pending_add = 0
+        @acquired = 0
+        @angle = 270
+        @message = 0
+        @message_countdown = 0
+        @view_angle = @angle
+        @view_angle_timer = 0
+
+        hair_colors = [
+            {r: 72, g: 88, b: 41},
+            {r: 255, g: 242, b: 0},
+            {r: 77, g: 57, b: 57},
+            {r: 90, g: 50, b: 20},
+            {r: 212, g: 212, b: 212}
+        ]
+        body_colors = [
+            {r: 0, g: 0, b: 0},
+            {r: 0, g: 64, b: 0},
+            {r: 64, g: 0, b: 0},
+            {r: 0, g: 0, b: 64}
+        ]
+        head_colors = [
+            {r: 255, g: 196, b: 128}, 
+            {r: 255, g: 141, b: 0}, 
+            {r: 125, g: 74, b: 12},
+            {r: 180, g: 103, b: 71}
+        ]
+
+        hair = hair_colors.sample
+        body = body_colors.sample
+        head = head_colors.sample
+        @visual = [
+            {path: "sprites/pedestrian/body/stand", r: body.r, g: body.g, b: body.b},
+            {path: "sprites/pedestrian/head/stand", r: head.r, g: head.g, b: head.b},
+            {path: "sprites/pedestrian/hair"+(rand*4).floor.to_s+"/stand", r: hair.r, g: hair.g, b: hair.b}
+        ]
+    end
+
+    def message=(text)
+        @message = text
+        @message_countdown = 1
+    end
+
+    def message
+        @message
     end
 
     def interact(from, args)
@@ -51,15 +94,22 @@ class Pedestrian
         v
     end
 
+    def onzerprev(v, vzero)
+        if v == 0
+            v = vzero
+        end
+        v
+    end
+
     def target(targetx, targety)
         if (targetx-@x).abs > (targety-@y).abs
-            @dx = sigz(targetx-@x, 0.05)
-            @dy_secondary = sigz(targety-@y, 0.05)
+            @dx = sigz(targetx-@x, 0.1)
+            @dy_secondary = sigz(targety-@y, 0.1)
             @dy = 0
             @dx_secondary = 0
         else
-            @dy = sigz(targety-@y, 0.05)
-            @dx_secondary = sigz(targetx-@x, 0.05)
+            @dy = sigz(targety-@y, 0.1)
+            @dx_secondary = sigz(targetx-@x, 0.1)
             @dx = 0
             @dy_secondary = 0
         end
@@ -77,15 +127,31 @@ class Pedestrian
             @cleansing_progress = 0
             @cleansing_active = true
         end
+        @acquired = 1
     end
 
     def process(args)
+        if @acquired > 0
+            @dx = 0
+            @dy = 0
+            @dx_secondary = 0
+            @dy_secondary = 0
+        end
+
         @speed = 1
         if @speedup > 0
             @speed = 1.5
             @speedup -= 0.75/6*args.state.dt
-            if @speedup < 0
+            if @speedup <= 0
                 @speedup = 0
+            end
+        end
+
+        if @message_countdown > 0
+            @message_countdown -= args.state.dt*0.5
+            if @message_countdown <= 0
+                @message_countdown = 0
+                @message = ""
             end
         end
 
@@ -100,7 +166,7 @@ class Pedestrian
                 @cleansing_active = false
             end
             args.state.obstacles.each do |b|
-                if b.interactive and (b.x-@x-@dx*collision_offset).abs()<collision_distance+@cleansing_progress*1.0/8 and (b.y-@y-@dy*collision_offset).abs()<collision_distance+@cleansing_progress*1.0/8 and (b.x!=@x or b.y!=@y)
+                if b.interactive and (b.x-@x-@dx*collision_offset) ** 2 + (b.y-@y-@dy*collision_offset) ** 2<(collision_distance+@cleansing_progress*1.2/8) ** 2 and (b.x!=@x or b.y!=@y)
                     b.interact(self, args)
                 end
             end
@@ -149,18 +215,6 @@ class Pedestrian
         if @y+@dy >= args.state.height
             @dy = 0
         end
-        if @dx<0
-            @angle = 90
-        end
-        if @dx>0
-            @angle = -90
-        end
-        if @dy<0
-            @angle = 180
-        end
-        if @dy>0
-            @angle = 0
-        end
 
         if @score < 0 and @destroyed == false
             building = Building.new(@x.round(), @y.round(), "building0", chance:0, contents: self)
@@ -207,6 +261,30 @@ class Pedestrian
             end
         end
 
+        if @dx<0
+            @angle = 90
+        end
+        if @dx>0
+            @angle = 270
+        end
+        if @dy<0
+            @angle = 180
+        end
+        if @dy>0
+            @angle = 0
+        end
+
+        if @angle != @view_angle
+            @view_angle_timer -= 1
+            if @view_angle_timer < 0
+                @view_angle_timer = 2
+                @view_angle = @angle
+            end
+        else
+            @view_angle_timer = 2
+            #@view_angle = @angle
+        end
+
 
         @x += @dx*collision_offset
         @y += @dy*collision_offset
@@ -218,49 +296,71 @@ class Pedestrian
             @particles = @particles.reject(&:ended)
         end
 
+        if @acquired > 0
+            @acquired -= args.state.dt
+            if @acquired < 0
+                @acquired = 0
+            end
+        end
+
         if @moving
             @walk += args.state.dt*10
-            if @walk >= 4*5
+            if @walk >= 2*5
                 @walk = 0
             end
+        else
+            @walk = 0
         end
     end
 
     def render(args)
-        if @moving
-            walk_progress = @walk.floor().div(5)
+        #if @moving
+        #    walk_progress = @walk.floor().div(5)
+        #    args.state.my_sprites << {
+        #        x: (@x- args.state.viewx)*8,
+        #        y: (@y- args.state.viewy)*8, 
+        #        w: 8,
+        #        h: 8,
+        #        path: 'sprites/pedestrian/walk/left'+walk_progress.to_s+'.png',
+        #        angle: @angle
+        #    }
+        #else
+        #    @walk = 0
+        #end
+
+        if @acquired > 0
             args.state.my_sprites << {
                 x: (@x- args.state.viewx)*8,
                 y: (@y- args.state.viewy)*8, 
                 w: 8,
                 h: 8,
-                path: 'sprites/pedestrian/left'+walk_progress.to_s+'.png',
-                angle: @angle
+                path: 'sprites/pedestrian/shadow.png',
             }
-        else
-            @walk = 0
         end
-            
 
-        args.state.my_sprites << {
-            x: (@x- args.state.viewx)*8,
-            y: (@y- args.state.viewy)*8, 
-            w: 8,
-            h: 8,
-            path: 'sprites/pedestrian/'+@outfit+'.png',
-            angle: @angle
-        }
+        @visual.each do |layer|
+            args.state.my_sprites << {
+                x: (@x- args.state.viewx)*8,
+                y: (@y- args.state.viewy+0.7*(0.5-(@acquired-0.5).abs))*8, 
+                w: 8,
+                h: 8,
+                r: layer.r,
+                g: layer.g,
+                b: layer.b,
+                path: layer.path+@view_angle.to_s+'.png',
+            }
+        end
     end
 
     def render_front(args)
         if @cleansing_progress != -1
             args.state.my_sprites << {
                 x: (@x- args.state.viewx)*8-4,
-                y: (@y- args.state.viewy)*8-4, 
+                y: (@y- args.state.viewy+0.7*(0.5-(@acquired-0.5).abs))*8-4, 
                 w: 16,
                 h: 16,
                 path: 'sprites/effects/cleanse'+@cleansing_progress.round().div(4).to_s+'.png',
-                angle: @angle
+                angle: @view_angle
             }
         end
         @particles.each do |particle|

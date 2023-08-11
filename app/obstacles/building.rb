@@ -102,6 +102,7 @@ class Building
     def interact(from, args)
         if from.is_pedestrian and @texture == "arena"
             if from.speedup == 0 #and args.state.tutorial > 2
+                from.message = ("Speedup")
                 from.speedup = 3+from.pending_add
                 from.pending_add = 0
                 args.state.tutorial = 3
@@ -112,6 +113,7 @@ class Building
             end
         elsif from.is_pedestrian and @texture == "factory"
             if from.cleansing < 1 #and args.state.tutorial > 2
+                from.message = ("Pulse")
                 from.cleansing = 1+from.pending_add
                 from.pending_add = 0
                 args.state.tutorial = 3
@@ -122,6 +124,7 @@ class Building
             end
         elsif from.is_pedestrian and @texture == "nursery"
             if from.health < 1 #and args.state.tutorial > 2
+                from.message = ("Life")
                 from.health += 1+from.pending_add
                 from.pending_add = 0
                 args.state.tutorial = 3
@@ -132,6 +135,7 @@ class Building
             end
         elsif from.is_pedestrian and @texture == "granary"
             if from.pending_add < 1 #and args.state.tutorial > 2
+                from.message = ("Bonus")
                 from.pending_add += 1
                 args.state.tutorial = 3
                 from.particles.push(HealParticle.new())
@@ -151,8 +155,11 @@ class Building
                 end
             end
             if @vp > 0
+                from.message = ("Fix +"+(@vp+from.pending_add).to_s)
                 from.score += @vp+from.pending_add
                 from.pending_add = 0
+            else
+                from.message = ("Fix +0")
             end
             @interactive = false
             @glitched = 0

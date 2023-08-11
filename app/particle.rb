@@ -124,6 +124,10 @@ class LightningParticle < Particle
                 particle.dy += (0.1-0.2*rand())
             end
         end
+        if rand() < rate()
+            @particles.push(create_particle())
+        end
+        @particles = @particles.reject(&:dead)
     end
 
     def rate()
