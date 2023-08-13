@@ -17,6 +17,7 @@ class Projectile
         @particles = [LightningParticle.new()]
         @creator = creator
         @speed = 0.5
+        @damage = 1
     end
 
     def process(args)
@@ -60,11 +61,15 @@ class Projectile
                     if b == args.state.player1 and args.state.volume > 0
                         args.outputs.sounds << 'sounds/Hit.ogg'
                     end
-                    b.message = ("Hit -1")
+                    if @damage == 2
+                        b.message = ("Shot -2")
+                    else
+                        b.message = ("Hit -1")
+                    end
                     if b.health > 0
                         b.health -= 1
                     else
-                        b.score -= 1
+                        b.score -= @damage
                     end
                 end
             end
@@ -114,6 +119,7 @@ class Laser < Projectile
         super(x, y, dx, dy, creator)
         @particles = []
         @speed = 1.5
+        @damage = 2
     end
     def render(args)
         args.state.my_sprites << {

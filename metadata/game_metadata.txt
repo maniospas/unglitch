@@ -2,5 +2,5 @@ devid=maniospas
 devtitle=maniospas
 gameid=unglitch-app
 gametitle=Un-Glitch
-version=0.6
+version=0.8
 icon=metadata/icon.png

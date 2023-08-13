@@ -2,7 +2,7 @@ require 'app/obstacles/building.rb'
 
 
 class Pedestrian
-    attr_accessor :x, :y, :destroyed, :moving, :solid, :interactive, :score, :speed, :is_pedestrian, :health, :particles, :pending_add, :cleansing, :speedup
+    attr_accessor :x, :y, :destroyed, :moving, :solid, :interactive, :score, :speed, :is_pedestrian, :health, :particles, :pending_add, :cleansing, :speedup, :dx, :dy, :dx_secondary, :dy_secondary
     def initialize(x, y, friendly)
         @x = x
         @y = y
@@ -29,7 +29,7 @@ class Pedestrian
         @pending_add = 0
         @acquired = 0
         @angle = 270
-        @message = 0
+        @message = ""
         @message_countdown = 0
         @view_angle = @angle
         @view_angle_timer = 0
@@ -74,6 +74,12 @@ class Pedestrian
     end
 
     def interact(from, args)
+        if from.is_pedestrian
+            @dx = -from.dx_secondary
+            @dy = -from.dy_secondary
+            @dx_secondary = from.dx
+            @dy_secondary = from.dy
+        end
         #if from.is_a? Pedestrian
         #    if from != args.state.player1
         #        from.score -= 1

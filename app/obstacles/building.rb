@@ -105,7 +105,9 @@ class Building
                 from.message = ("Speedup")
                 from.speedup = 3+from.pending_add
                 from.pending_add = 0
-                args.state.tutorial = 3
+                if from == args.state.player1 
+                    args.state.tutorial = 3
+                end
                 from.particles.push(CleansingParticle.new())
                 if from == args.state.player1 and args.state.volume > 0
                     args.outputs.sounds << 'sounds/Buff2.ogg'
@@ -116,7 +118,9 @@ class Building
                 from.message = ("Pulse")
                 from.cleansing = 1+from.pending_add
                 from.pending_add = 0
-                args.state.tutorial = 3
+                if from == args.state.player1 
+                    args.state.tutorial = 3
+                end
                 from.particles.push(CleansingParticle.new())
                 if from == args.state.player1 and args.state.volume > 0
                     args.outputs.sounds << 'sounds/Buff2.ogg'
@@ -127,7 +131,9 @@ class Building
                 from.message = ("Life")
                 from.health += 1+from.pending_add
                 from.pending_add = 0
-                args.state.tutorial = 3
+                if from == args.state.player1 
+                    args.state.tutorial = 3
+                end
                 from.particles.push(HealParticle.new())
                 if from == args.state.player1 and args.state.volume > 0
                     args.outputs.sounds << 'sounds/Buff.ogg'
@@ -137,7 +143,9 @@ class Building
             if from.pending_add < 1 #and args.state.tutorial > 2
                 from.message = ("Bonus")
                 from.pending_add += 1
-                args.state.tutorial = 3
+                if from == args.state.player1 
+                    args.state.tutorial = 3
+                end
                 from.particles.push(HealParticle.new())
                 if from == args.state.player1 and args.state.volume > 0
                     args.outputs.sounds << 'sounds/Buff.ogg'

@@ -7,17 +7,26 @@ class Laserjet
     def initialize(x, y)
         @x = x
         @y = y
-        @texture = 'laserjet'
+        @texture = 'laserjet2'
         @size = 8
-        @progress = (rand()*90).to_i
+        @progress = 30+(rand()*60).to_i
         @solid = true
-        @interactive = false
+        @interactive = true
         @is_pedestrian = false
         @destroyed = false
         @particles = []
+        @offset = rand()
     end
 
     def interact(from, args)
+        if from.is_pedestrian and @progress > 40
+            from.message = "Snooze"
+            @progress = 5
+            if from == args.state.player1 and args.state.volume > 0
+                args.outputs.sounds << 'sounds/Select.ogg'
+            end
+            from.on_fix(args)
+        end
     end
     
     def render(args)
@@ -44,7 +53,8 @@ class Laserjet
 
     
     def process(args)
-        @progress += 1
+        @progress += 3*args.state.dt
+        @offset += args.state.dt
         if @progress > 90
             @progress = 0
             proj = Laser.new(@x-0.5, @y, -1, 0, self)
@@ -61,10 +71,16 @@ class Laserjet
             proj.process(args)
         end
         
-        if @progress > 90-20 or @progress < 10
-            @texture = 'laserjet'
-        else 
+        if @progress > 90-10 or @progress < 2
+            if (@offset*10).round.div(3) % 2 == 0
+                @texture = 'laserjet'
+            else
+                @texture = 'laserjet1'
+            end
+        elsif @progress > 40 and (@offset*10).round.div(6) % 2 == 0 
             @texture = 'laserjet1'
+        else 
+            @texture = 'laserjet2'
         end
 
         @particles.each do |particle|
